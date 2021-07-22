@@ -9,8 +9,8 @@ defmodule PrParkingWeb.ParkingController do
     end
   end
 
-  def update(conn, %{"id" => id, "refresh_period" => refresh_period}) do
-    with :ok <- PrParking.set_pr_parking_refresh_timeout(id, refresh_period) do
+  def set_refresh_period(conn, %{"id" => id, "refresh_period" => refresh_period}) do
+    with :ok <- PrParking.set_pr_parking_refresh_period(id, refresh_period) do
       render(conn, "refresh_period.json", refresh_period: refresh_period)
     end
   end

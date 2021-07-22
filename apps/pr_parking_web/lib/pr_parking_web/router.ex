@@ -9,7 +9,7 @@ defmodule PrParkingWeb.Router do
     pipe_through :api
 
     get "/parkings/:id", ParkingController, :show
-    post "/parkings/:id", ParkingController, :update
+    post "/crawlers/:id", ParkingController, :set_refresh_period
   end
 
   if Mix.env() in [:dev, :test] do

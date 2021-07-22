@@ -90,7 +90,7 @@ defmodule PrParkingWeb.ParkingControllerTest do
       refresh_period = ctx.refresh_period
       id = ctx.id
 
-      expect(PrParkingMock, :set_pr_parking_refresh_timeout, fn ^id, ^refresh_period ->
+      expect(PrParkingMock, :set_pr_parking_refresh_period, fn ^id, ^refresh_period ->
         expectation
       end)
     end
@@ -98,7 +98,7 @@ defmodule PrParkingWeb.ParkingControllerTest do
     def post_update(%{} = ctx) do
       post(
         ctx.conn,
-        Routes.parking_path(ctx.conn, :update, ctx.id),
+        Routes.parking_path(ctx.conn, :set_refresh_period, ctx.id),
         refresh_period: ctx.refresh_period
       )
     end
