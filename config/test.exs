@@ -7,3 +7,5 @@ config :pr_parking_web, PrParkingWeb.Endpoint,
 config :logger, level: :warn
 
 config :tesla, adapter: Tesla.Mock
+
+config :pr_parking, :module, PrParkingMock

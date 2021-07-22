@@ -29,6 +29,7 @@ defmodule PrParking.MixProject do
 
   defp deps do
     [
+      {:mojepraha_api, in_umbrella: true},
       {:phoenix_pubsub, "~> 2.0"},
       {:hammox, "~> 0.5", only: :test}
     ]

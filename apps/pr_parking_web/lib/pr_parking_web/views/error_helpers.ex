@@ -3,6 +3,12 @@ defmodule PrParkingWeb.ErrorHelpers do
   Conveniences for translating and building error messages.
   """
 
+  def detail(:not_found), do: "Not Found"
+  def detail(:bad_arg), do: "Bad Arguments Given"
+  def detail(:too_many_requests), do: "Too Many Requests"
+  def detail(:not_ready), do: "Not Ready"
+  def detail(_), do: "Internal Server Error"
+
   @doc """
   Translates an error message.
   """
