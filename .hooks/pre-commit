@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e # stop on error
+
+mix compile --warnings-as-errors
+mix format --check-formatted
+mix credo
+mix dialyzer
