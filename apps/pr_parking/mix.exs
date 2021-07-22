@@ -29,7 +29,8 @@ defmodule PrParking.MixProject do
 
   defp deps do
     [
-      {:phoenix_pubsub, "~> 2.0"}
+      {:phoenix_pubsub, "~> 2.0"},
+      {:hammox, "~> 0.5", only: :test}
     ]
   end
 

@@ -93,7 +93,7 @@ defmodule MojeprahaApi do
   end
 
   @behaviour Behaviour
-  @adapter Application.compile_env(:packbox, :easy_post_api_module, HttpApi)
+  @adapter Application.compile_env(:mojepraha_api, :module, HttpApi)
 
   defdelegate get_pr_parking(id), to: @adapter
 end
