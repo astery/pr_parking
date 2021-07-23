@@ -12,3 +12,8 @@ config :logger, :console, format: "[$level] $message\n"
 config :phoenix, :plug_init_mode, :runtime
 
 config :phoenix, :stacktrace_depth, 20
+
+config :pr_parking,
+  resources: [
+    %{id: "534013", refresh_period: 100}
+  ]

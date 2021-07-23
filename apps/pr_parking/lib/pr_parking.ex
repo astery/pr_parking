@@ -45,7 +45,7 @@ defmodule PrParking do
         opts
         |> Map.get(:resources, [])
         |> Enum.map(fn %{id: id, refresh_period: refresh_period} ->
-          {:refresh_period, get_pr_parking_mfa(id), refresh_period}
+          {:refresh_period, get_pr_parking_mfa(id), from_mins_to_mills(refresh_period)}
         end)
 
       with {:ok, pid} <- Cached.start_link(cached_opts, name: __MODULE__) do
@@ -60,17 +60,23 @@ defmodule PrParking do
     end
 
     def set_pr_parking_refresh_period(id, period) do
+      period = from_mins_to_mills(period)
       Cached.set_refresh_period(__MODULE__, get_pr_parking_mfa(id), period)
     end
 
     def get_pr_parking_refresh_period(id) do
-      Cached.get_refresh_period(__MODULE__, get_pr_parking_mfa(id))
+      with {:ok, mills} <- Cached.get_refresh_period(__MODULE__, get_pr_parking_mfa(id)) do
+        {:ok, from_mills_to_mins(mills)}
+      end
     end
 
     defp get_pr_parking_mfa(id), do: {MojeprahaApi, :get_pr_parking, [id]}
 
     defp before_warm_up(%{before_warm_up: f}, pid), do: f.(pid)
     defp before_warm_up(_opts, _pid), do: nil
+
+    defp from_mins_to_mills(mins), do: mins * 60 * 1000
+    defp from_mills_to_mins(mills), do: Integer.floor_div(mills, 60 * 1000)
   end
 
   @behaviour Behaviour
@@ -79,4 +85,8 @@ defmodule PrParking do
   defdelegate start_link(opts), to: @adapter
   defdelegate get_pr_parking(id), to: @adapter
   defdelegate set_pr_parking_refresh_period(id, period), to: @adapter
+
+  def child_spec(opts) do
+    %{id: PrParking, start: {PrParking, :start_link, [opts]}}
+  end
 end
