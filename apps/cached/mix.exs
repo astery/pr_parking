@@ -23,6 +23,8 @@ defmodule Cached.MixProject do
   end
 
   defp deps do
-    []
+    [
+      {:hammox, "~> 0.5", only: :test}
+    ]
   end
 end
