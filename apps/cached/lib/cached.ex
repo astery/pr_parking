@@ -58,12 +58,12 @@ defmodule Cached do
         # Ideally gradually increase with every request call, and with respect
         # to :requests_per_minute_warm_up_limit
         offset = 0
-        call_later(state, mfa, offset)
+        call_later(state, self(), mfa, offset)
       end)
     end
 
-    defp call_later(state, mfa, offset) do
-      state.timer.send_after(self(), {:make_call, mfa}, offset)
+    defp call_later(state, server_pid, mfa, offset) do
+      state.timer.send_after(server_pid, {:make_call, mfa}, offset)
     end
 
     def get_cached_value(state, mfa) do
@@ -102,10 +102,18 @@ defmodule Cached do
     end
 
     def make_call(state, {m, f, a} = mfa) do
+      server_pid = self()
+
       task =
         Task.Supervisor.async_nolink(Cached.TaskSupervisor, fn ->
           before_each_call(state, self())
-          apply(m, f, a)
+
+          result = apply(m, f, a)
+
+          offset = get_refresh_period(state, mfa)
+          call_later(state, server_pid, mfa, offset)
+
+          result
         end)
 
       %{state | refs: Map.put(state.refs, task.ref, mfa)}
@@ -114,6 +122,7 @@ defmodule Cached do
     def receive_call_result(state, ref, result) do
       Process.demonitor(ref, [:flush])
       {mfa, refs} = Map.pop(state.refs, ref)
+
       %{state | refs: refs, cached_values: Map.put(state.cached_values, mfa, result)}
     end
 
@@ -121,7 +130,7 @@ defmodule Cached do
       mfa = state.refs[ref]
       Logger.warn("Failed to call #{inspect(mfa)} due: #{inspect(reason)}")
       # Here should be implemented backoff logic
-      call_later(state, mfa, @retry_timeout)
+      call_later(state, self(), mfa, @retry_timeout)
     end
 
     def before_each_call(%{before_each_call: nil}, _pid), do: nil

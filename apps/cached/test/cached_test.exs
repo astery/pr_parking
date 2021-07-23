@@ -6,10 +6,20 @@ defmodule CachedTest do
 
   setup :verify_on_exit!
 
+  setup do
+    test_pid = self()
+
+    TimerMock
+    |> stub(:send_after, fn _, msg, timeout ->
+      send(test_pid, {:timer_send_after, msg, timeout})
+    end)
+
+    :ok
+  end
+
   describe "cached started" do
     setup [
       :single_refresh_period_set,
-      :expect_timer_call,
       :cached_started
     ]
 
@@ -21,17 +31,35 @@ defmodule CachedTest do
   describe "cached warmed up" do
     setup [
       :single_refresh_period_set,
-      :expect_timer_call,
       :cached_started,
       :expect_to_request_successfully,
       :assert_receive_timer_event,
       :send_pending_timer_event,
-      :assert_recieve_request_call
+      :assert_recieve_request_call,
+      :assert_receive_timer_event,
+      :wait_refresh_to_apply
     ]
 
     test "&call/1 should return cached result without calling api", ctx do
       assert ctx.api_response == Cached.call(ctx.pid, ctx.mfa)
       assert ctx.api_response == Cached.call(ctx.pid, ctx.mfa)
+
+      refute_receive {:api_request, _}
+    end
+
+    test "&call/1 after refresh time passed should return a new info", ctx do
+      new_response = {:ok, :new_payload}
+
+      ctx =
+        %{ctx | api_response: new_response}
+        |> merge(&expect_to_request_successfully/1)
+        |> merge(&send_pending_timer_event/1)
+        |> merge(&assert_recieve_request_call/1)
+        |> merge(&assert_receive_timer_event/1)
+
+      wait_refresh_to_apply()
+
+      assert new_response == Cached.call(ctx.pid, ctx.mfa)
 
       refute_receive {:api_request, _}
     end
@@ -78,12 +106,12 @@ defmodule CachedTest do
   defp expect_to_request_successfully(ctx) do
     {_, _, [arg]} = ctx.mfa
     event = {:api_request, ctx.mfa}
-    response = {:ok, :payload}
+    response = ctx[:api_response] || {:ok, :payload}
 
     test_pid = self()
 
     ApiMock
-    |> expect(:request, fn ^arg ->
+    |> stub(:request, fn ^arg ->
       send(test_pid, event)
       response
     end)
@@ -125,17 +153,6 @@ defmodule CachedTest do
     %{mfa: mfa, refresh_period: nil, cached_options: []}
   end
 
-  defp expect_timer_call(_ctx) do
-    test_pid = self()
-
-    TimerMock
-    |> expect(:send_after, fn _, msg, timeout ->
-      send(test_pid, {:timer_send_after, msg, timeout})
-    end)
-
-    :ok
-  end
-
   defp cached_started(ctx) do
     test_pid = self()
 
@@ -157,5 +174,14 @@ defmodule CachedTest do
     :ok = Cached.warm_up(pid)
 
     %{pid: pid}
+  end
+
+  defp merge(ctx, step) do
+    Map.merge(ctx, step.(ctx))
+  end
+
+  # We need to replace that with an update event cache
+  defp wait_refresh_to_apply(_ \\ nil) do
+    Process.sleep(100)
   end
 end
