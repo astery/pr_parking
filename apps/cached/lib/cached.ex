@@ -111,7 +111,10 @@ defmodule Cached do
           result = apply(m, f, a)
 
           offset = get_refresh_period(state, mfa)
-          call_later(state, server_pid, mfa, offset)
+
+          if is_integer(offset) do
+            call_later(state, server_pid, mfa, offset)
+          end
 
           result
         end)
