@@ -3,6 +3,7 @@ defmodule PrParkingWeb.ParkingControllerTest do
 
   alias PrParkingWeb.ErrorView
 
+  import PrParking.Support.Factory, only: [build_parking: 0]
   import PrParkingWeb.ParkingView, only: [render: 2]
   import Hammox
 
@@ -102,12 +103,5 @@ defmodule PrParkingWeb.ParkingControllerTest do
         refresh_period: ctx.refresh_period
       )
     end
-  end
-
-  defp build_parking() do
-    %{
-      num_of_taken_places: 8,
-      total_num_of_places: 9
-    }
   end
 end

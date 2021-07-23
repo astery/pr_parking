@@ -4,11 +4,6 @@ defmodule CachedTest do
 
   import Hammox
 
-  alias Cached.Api
-
-  Mox.defmock(ApiMock, for: Api)
-  Mox.defmock(TimerMock, for: Cached.Timer.Behaviour)
-
   setup :verify_on_exit!
 
   describe "cached started" do
@@ -19,7 +14,7 @@ defmodule CachedTest do
     ]
 
     test "&call/1 should return :not_ready then not initialized", ctx do
-      assert Cached.call(ctx.pid, ctx.mfa) == :not_ready
+      assert Cached.call(ctx.pid, ctx.mfa) == {:error, :not_ready}
     end
   end
 
@@ -38,7 +33,37 @@ defmodule CachedTest do
       assert ctx.api_response == Cached.call(ctx.pid, ctx.mfa)
       assert ctx.api_response == Cached.call(ctx.pid, ctx.mfa)
 
-      refute_receive {:requested, _}
+      refute_receive {:api_request, _}
+    end
+
+    test "&set_refresh_period/1 should change period", ctx do
+      assert :ok == Cached.set_refresh_period(ctx.pid, ctx.mfa, 43)
+      assert {:ok, 43} == Cached.get_refresh_period(ctx.pid, ctx.mfa)
+
+      refute_receive {:api_request, _}
+    end
+  end
+
+  describe "no periods set and cached warmed up" do
+    setup [
+      :no_refresh_periods_set,
+      :cached_started
+    ]
+
+    test "&call/1 should return {:error, :not_cached}", ctx do
+      assert {:error, :has_no_refresh_period} == Cached.call(ctx.pid, ctx.mfa)
+
+      refute_receive {:api_request, _}
+    end
+
+    test "&set_refresh_period/1 should call api if before that it was nil", ctx do
+      expect_to_request_successfully(ctx)
+
+      assert {:ok, nil} == Cached.get_refresh_period(ctx.pid, ctx.mfa)
+      assert :ok == Cached.set_refresh_period(ctx.pid, ctx.mfa, 43)
+      assert {:ok, 43} == Cached.get_refresh_period(ctx.pid, ctx.mfa)
+
+      assert_receive {:api_request, _}
     end
   end
 
@@ -94,6 +119,12 @@ defmodule CachedTest do
     %{mfa: mfa, refresh_period: refresh_period, cached_options: cached_options}
   end
 
+  defp no_refresh_periods_set(_ctx) do
+    mfa = {ApiMock, :request, [:arg]}
+
+    %{mfa: mfa, refresh_period: nil, cached_options: []}
+  end
+
   defp expect_timer_call(_ctx) do
     test_pid = self()
 
@@ -106,11 +137,22 @@ defmodule CachedTest do
   end
 
   defp cached_started(ctx) do
-    opts = [{:timer, TimerMock}] ++ ctx.cached_options
-    {:ok, pid} = Cached.start_link(opts)
+    test_pid = self()
 
-    allow(TimerMock, self(), pid)
-    allow(ApiMock, self(), pid)
+    before_each_call = fn task_pid ->
+      allow(ApiMock, test_pid, task_pid)
+    end
+
+    opts =
+      [
+        {:timer, TimerMock},
+        {:before_each_call, before_each_call}
+      ] ++ ctx.cached_options
+
+    {:ok, pid} = start_supervised({Cached, opts})
+
+    allow(TimerMock, test_pid, pid)
+    allow(ApiMock, test_pid, pid)
 
     :ok = Cached.warm_up(pid)
 

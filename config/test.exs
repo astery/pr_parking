@@ -9,3 +9,4 @@ config :logger, level: :warn
 config :tesla, adapter: Tesla.Mock
 
 config :pr_parking, :module, PrParkingMock
+config :mojepraha_api, :module, MojeprahaApiMock

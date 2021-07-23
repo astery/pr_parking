@@ -2,6 +2,8 @@ defmodule MojeprahaApiTest do
   use ExUnit.Case
   doctest MojeprahaApi
 
+  alias MojeprahaApi.HttpApi
+
   describe "HttpApi" do
     test "get_pr_parkings/1 sanity check" do
       id = 534_013
@@ -11,7 +13,7 @@ defmodule MojeprahaApiTest do
       end)
 
       assert {:ok, %{num_of_taken_places: 57, total_num_of_places: 57}} ==
-               MojeprahaApi.get_pr_parking(id)
+               HttpApi.get_pr_parking(id)
     end
   end
 

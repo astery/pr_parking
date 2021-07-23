@@ -18,6 +18,18 @@ defmodule PrParking do
     @type pr_parking_response :: {:ok, Api.parking_properties()} | errors()
     @type period :: timeout()
 
+    @type minutes :: integer()
+    @type resource_opt :: %{
+            id: String.t() | integer(),
+            refresh_period: minutes()
+          }
+
+    @type start_opts :: %{
+            optional(:start) => boolean(),
+            optional(:resources) => [resource_opt()]
+          }
+
+    @callback start_link(start_opts) :: {:ok, pid()}
     @callback get_pr_parking(Api.parking_id()) :: pr_parking_response
     @callback set_pr_parking_refresh_period(Api.parking_id(), period()) ::
                 :ok | :error | {:error, :bad_arg} | {:error, :not_found}
@@ -28,41 +40,43 @@ defmodule PrParking do
 
     @behaviour Behaviour
 
-    def get_pr_parking(_id) do
-      # Here should be calls to an api wrapped in cache layer
-      #
-      # Cached.call({MojeprahaApi, :get_pr_parking, [id]})
+    def start_link(opts) do
+      cached_opts =
+        opts
+        |> Map.get(:resources, [])
+        |> Enum.map(fn %{id: id, refresh_period: refresh_period} ->
+          {:refresh_period, get_pr_parking_mfa(id), refresh_period}
+        end)
 
-      {:ok,
-       %{
-         num_of_taken_places: 10,
-         total_num_of_places: 30
-       }}
+      with {:ok, pid} <- Cached.start_link(cached_opts, name: __MODULE__) do
+        before_warm_up(opts, pid)
+        Cached.warm_up(pid)
+        {:ok, pid}
+      end
     end
 
-    def set_pr_parking_refresh_period(_id, _period) do
-      # Here should be calls to cache layer config
-      #
-      # Cached.set_refresh_period({MojeprahaApi, :get_pr_parking, [id]}, period)
-
-      :ok
+    def get_pr_parking(id) do
+      Cached.call(__MODULE__, get_pr_parking_mfa(id))
     end
+
+    def set_pr_parking_refresh_period(id, period) do
+      Cached.set_refresh_period(__MODULE__, get_pr_parking_mfa(id), period)
+    end
+
+    def get_pr_parking_refresh_period(id) do
+      Cached.get_refresh_period(__MODULE__, get_pr_parking_mfa(id))
+    end
+
+    defp get_pr_parking_mfa(id), do: {MojeprahaApi, :get_pr_parking, [id]}
+
+    defp before_warm_up(%{before_warm_up: f}, pid), do: f.(pid)
+    defp before_warm_up(_opts, _pid), do: nil
   end
 
   @behaviour Behaviour
   @adapter Application.compile_env(:pr_parking, :module, Impl)
 
-  # Here should be functions to start process (deletating to Cached)
-  #
-  # def start_link(opts) do
-  #   cached_opts =
-  #     Applications.get_env(:pr_parking, :resources)
-  #     |> Enum.map(...)
-  #
-  #   ...
-  #   Cached.start_link(cached_opts)
-  # end
-
+  defdelegate start_link(opts), to: @adapter
   defdelegate get_pr_parking(id), to: @adapter
   defdelegate set_pr_parking_refresh_period(id, period), to: @adapter
 end

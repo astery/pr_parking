@@ -10,6 +10,7 @@ defmodule MojeprahaApi.MixProject do
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
       elixir: "~> 1.12",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -21,11 +22,15 @@ defmodule MojeprahaApi.MixProject do
     ]
   end
 
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
+
   defp deps do
     [
       {:tesla, "~> 1.4"},
       {:hackney, "~> 1.17.0"},
-      {:jason, ">= 1.0.0"}
+      {:jason, ">= 1.0.0"},
+      {:hammox, "~> 0.5", only: :test}
     ]
   end
 end
