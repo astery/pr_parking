@@ -15,5 +15,5 @@ config :phoenix, :stacktrace_depth, 20
 
 config :pr_parking,
   resources: [
-    %{id: "534013", refresh_period: 100}
+    %{id: "534013", refresh_period: 1}
   ]
